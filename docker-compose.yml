@@ -1,0 +1,19 @@
+services:
+  ocr-api:
+    build: .
+    container_name: ocr-api
+    ports:
+      - "8080:8080"
+
+    environment:
+      # 認証情報ファイルのパスをコンテナ内で指定
+      GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/gcp-key.json
+
+    volumes:
+      # ホストの service_account.json をコンテナ内の安全な場所にマウント
+      # ソース全体をマウントせず、認証情報のみを読み取り専用で渡す
+      - ./service_account.json:/var/secrets/gcp-key.json:ro
+
+    # .env ファイルで定義された環境変数を読み込む
+    env_file:
+      - .env

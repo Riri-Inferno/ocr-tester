@@ -1,2 +1,6 @@
 # 環境変数
 .env
+
+# GCPサービスアカウント鍵
+service_account.json
+
