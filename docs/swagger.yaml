@@ -1,8 +1,21 @@
 basePath: /
+definitions:
+  domain.OCRResult:
+    properties:
+      createdAt:
+        type: string
+      extractedText:
+        type: string
+      fileName:
+        type: string
+      id:
+        description: FirestoreのドキュメントID
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
-  description: これはGo言語で作成されたOCRテスト用のシンプルなAPIです。
+  description: これはGo言語で作成されたOCRテスト用のシンプルなAPIです
   title: OCR Tester API
   version: "1.0"
 paths:
@@ -23,4 +36,37 @@ paths:
       summary: Hello Worldメッセージを返す
       tags:
       - General
+  /api/ocr-result/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Firestoreに保存された特定のOCR結果を取得します
+      parameters:
+      - description: OCR結果のドキュメントID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/domain.OCRResult'
+        "404":
+          description: 指定されたIDが見つからない
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバーエラー
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OCR結果をIDで取得する
+      tags:
+      - OCR
 swagger: "2.0"
