@@ -1,0 +1,39 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "これはGo言語で作成されたOCRテスト用のシンプルなAPIです。",
+        "title": "OCR Tester API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/api/hello": {
+            "get": {
+                "description": "シンプルなGETリクエストで起動確認用のメッセージを返す",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "General"
+                ],
+                "summary": "Hello Worldメッセージを返す",
+                "responses": {
+                    "200": {
+                        "description": "成功時のメッセージ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

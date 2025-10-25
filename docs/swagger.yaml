@@ -1,0 +1,26 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: これはGo言語で作成されたOCRテスト用のシンプルなAPIです。
+  title: OCR Tester API
+  version: "1.0"
+paths:
+  /api/hello:
+    get:
+      consumes:
+      - application/json
+      description: シンプルなGETリクエストで起動確認用のメッセージを返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功時のメッセージ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Hello Worldメッセージを返す
+      tags:
+      - General
+swagger: "2.0"
