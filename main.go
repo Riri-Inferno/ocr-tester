@@ -1,45 +1,82 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
-	// 自動生成された docs パッケージをインポート
+	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
+
+	"cloud.google.com/go/firestore"
+
+	"ocr-tester/handler"
+	"ocr-tester/repository"
+
 	_ "ocr-tester/docs"
-	// Swagger UIを表示するためのライブラリ
+
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-// @title OCR Tester API
-// @version 1.0
-// @description これはGo言語で作成されたOCRテスト用のシンプルなAPIです。
-// @host localhost:8080
-// @BasePath /
+// Firestore コレクション名
+const collectionName = "ocr_results"
+
 func main() {
-	http.HandleFunc("/api/hello", helloHandler)
+	// .env ファイルを読み込む（存在しない場合は無視）
+	_ = godotenv.Load()
 
-    // http://localhost:8080/swagger/index.html でアクセス可能
-    http.Handle("/swagger/", httpSwagger.WrapHandler)
-	
-	fmt.Println("サーバーをポート :8080 で起動しました...")
-	err := http.ListenAndServe(":8080", nil)
+	// 環境変数から Firestore 設定を取得
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	databaseID := os.Getenv("FIRESTORE_DATABASE_ID")
 
+	if projectID == "" || databaseID == "" {
+		log.Fatal("環境変数 GOOGLE_CLOUD_PROJECT または FIRESTORE_DATABASE_ID が設定されていません")
+	}
+
+	// Firestore クライアントを初期化
+	ctx := context.Background()
+	fsClient, err := firestore.NewClientWithDatabase(ctx, projectID, databaseID)
 	if err != nil {
+		log.Fatalf("Firestore クライアントの初期化に失敗しました: %v", err)
+	}
+	defer fsClient.Close()
+
+	// リポジトリとハンドラを初期化
+	repo := repository.NewFirestoreRepository(fsClient, collectionName)
+	ocrHandler := handler.NewOcrHandler(repo)
+
+	// ルーターを設定
+	r := chi.NewRouter()
+
+	// 動作確認用エンドポイント
+	r.Get("/api/hello", helloHandler)
+
+	// OCR結果取得エンドポイント
+	r.Get("/api/ocr-result/{id}", ocrHandler.GetOCRResultByID)
+
+	// Swagger UI のエンドポイント
+	r.Handle("/swagger/*", httpSwagger.WrapHandler)
+
+	// サーバー起動
+	addr := ":8080"
+	log.Printf("サーバーをポート %s で起動中...", addr)
+
+	if err := http.ListenAndServe(addr, r); err != nil {
 		log.Fatalf("サーバー起動エラー: %v", err)
 	}
 }
 
-// @Summary Hello Worldメッセージを返す
-// @Description シンプルなGETリクエストで起動確認用のメッセージを返す
+// helloHandler は単純な動作確認用エンドポイント。
+//
+// @Summary Hello World メッセージを返す
+// @Description サーバーの起動確認用エンドポイント
 // @Tags General
-// @Accept json
 // @Produce json
-// @Success 200 {object} map[string]string "成功時のメッセージ"
+// @Success 200 {object} map[string]string
 // @Router /api/hello [get]
-func helloHandler(w http.ResponseWriter, r *http.Request) {
+func helloHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := `{"message": "Hello, World! from Go API"}`
-	fmt.Fprint(w, response)
+	fmt.Fprint(w, `{"message":"Hello, World! from Go API"}`)
 }
