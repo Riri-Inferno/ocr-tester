@@ -40,6 +40,76 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/ocr-result/{id}": {
+            "get": {
+                "description": "Firestoreに保存された特定のOCR結果を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OCR"
+                ],
+                "summary": "OCR結果をIDで取得する",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "OCR結果のドキュメントID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "取得成功",
+                        "schema": {
+                            "$ref": "#/definitions/domain.OCRResult"
+                        }
+                    },
+                    "404": {
+                        "description": "指定されたIDが見つからない",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバーエラー",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "domain.OCRResult": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "extractedText": {
+                    "type": "string"
+                },
+                "fileName": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "FirestoreのドキュメントID",
+                    "type": "string"
+                }
+            }
         }
     }
 }`
@@ -51,7 +121,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "OCR Tester API",
-	Description:      "これはGo言語で作成されたOCRテスト用のシンプルなAPIです。",
+	Description:      "これはGo言語で作成されたOCRテスト用のシンプルなAPIです",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
