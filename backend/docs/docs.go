@@ -17,20 +17,17 @@ const docTemplate = `{
     "paths": {
         "/api/hello": {
             "get": {
-                "description": "シンプルなGETリクエストで起動確認用のメッセージを返す",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "サーバーの起動確認用エンドポイント",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "General"
                 ],
-                "summary": "Hello Worldメッセージを返す",
+                "summary": "Hello World メッセージを返す",
                 "responses": {
                     "200": {
-                        "description": "成功時のメッセージ",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -43,7 +40,7 @@ const docTemplate = `{
         },
         "/api/ocr-result/{id}": {
             "get": {
-                "description": "Firestoreに保存された特定のOCR結果を取得します",
+                "description": "Retrieve a specific OCR result stored in Firestore by document ID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -53,11 +50,11 @@ const docTemplate = `{
                 "tags": [
                     "OCR"
                 ],
-                "summary": "OCR結果をIDで取得する",
+                "summary": "Get OCR result by ID",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "OCR結果のドキュメントID",
+                        "description": "OCR document ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -65,13 +62,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "取得成功",
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/domain.OCRResult"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "指定されたIDが見つからない",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -80,7 +86,150 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "サーバーエラー",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/prompts": {
+            "get": {
+                "description": "Retrieve all prompts (excluding deleted)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompts"
+                ],
+                "summary": "Get all prompts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.PromptInfo"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/prompts/upsert": {
+            "post": {
+                "description": "Create a new prompt or update existing one",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompts"
+                ],
+                "summary": "Create or update prompt",
+                "parameters": [
+                    {
+                        "description": "Prompt data",
+                        "name": "prompt",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.Prompt"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Prompt"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/prompts/{id}": {
+            "get": {
+                "description": "Retrieve a specific prompt by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompts"
+                ],
+                "summary": "Get prompt by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Prompt ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Prompt"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a prompt by ID (soft delete)",
+                "tags": [
+                    "Prompts"
+                ],
+                "summary": "Delete prompt",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Prompt ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -97,16 +246,62 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "createdAt": {
+                    "description": "レコード作成日時",
                     "type": "string"
                 },
                 "extractedText": {
+                    "description": "OCR により抽出されたテキスト",
                     "type": "string"
                 },
                 "fileName": {
+                    "description": "処理対象のファイル名",
                     "type": "string"
                 },
                 "id": {
-                    "description": "FirestoreのドキュメントID",
+                    "description": "Firestore のドキュメント ID",
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Prompt": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "promptContent": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "userID": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.PromptInfo": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "userId": {
                     "type": "string"
                 }
             }
@@ -116,12 +311,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "OCR Tester API",
-	Description:      "これはGo言語で作成されたOCRテスト用のシンプルなAPIです",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

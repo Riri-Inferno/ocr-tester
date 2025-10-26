@@ -1,48 +1,73 @@
-basePath: /
 definitions:
   domain.OCRResult:
     properties:
       createdAt:
+        description: レコード作成日時
         type: string
       extractedText:
+        description: OCR により抽出されたテキスト
         type: string
       fileName:
+        description: 処理対象のファイル名
         type: string
       id:
-        description: FirestoreのドキュメントID
+        description: Firestore のドキュメント ID
         type: string
     type: object
-host: localhost:8080
+  domain.Prompt:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      promptContent:
+        type: string
+      updatedAt:
+        type: string
+      userID:
+        type: string
+    type: object
+  domain.PromptInfo:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updatedAt:
+        type: string
+      userId:
+        type: string
+    type: object
 info:
   contact: {}
-  description: これはGo言語で作成されたOCRテスト用のシンプルなAPIです
-  title: OCR Tester API
-  version: "1.0"
 paths:
   /api/hello:
     get:
-      consumes:
-      - application/json
-      description: シンプルなGETリクエストで起動確認用のメッセージを返す
+      description: サーバーの起動確認用エンドポイント
       produces:
       - application/json
       responses:
         "200":
-          description: 成功時のメッセージ
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Hello Worldメッセージを返す
+      summary: Hello World メッセージを返す
       tags:
       - General
   /api/ocr-result/{id}:
     get:
       consumes:
       - application/json
-      description: Firestoreに保存された特定のOCR結果を取得します
+      description: Retrieve a specific OCR result stored in Firestore by document
+        ID.
       parameters:
-      - description: OCR結果のドキュメントID
+      - description: OCR document ID
         in: path
         name: id
         required: true
@@ -51,22 +76,122 @@ paths:
       - application/json
       responses:
         "200":
-          description: 取得成功
+          description: OK
           schema:
             $ref: '#/definitions/domain.OCRResult'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
-          description: 指定されたIDが見つからない
+          description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: サーバーエラー
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: OCR結果をIDで取得する
+      summary: Get OCR result by ID
       tags:
       - OCR
+  /api/prompts:
+    get:
+      description: Retrieve all prompts (excluding deleted)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.PromptInfo'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all prompts
+      tags:
+      - Prompts
+  /api/prompts/{id}:
+    delete:
+      description: Delete a prompt by ID (soft delete)
+      parameters:
+      - description: Prompt ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete prompt
+      tags:
+      - Prompts
+    get:
+      description: Retrieve a specific prompt by ID
+      parameters:
+      - description: Prompt ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Prompt'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get prompt by ID
+      tags:
+      - Prompts
+  /api/prompts/upsert:
+    post:
+      consumes:
+      - application/json
+      description: Create a new prompt or update existing one
+      parameters:
+      - description: Prompt data
+        in: body
+        name: prompt
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Prompt'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Prompt'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create or update prompt
+      tags:
+      - Prompts
 swagger: "2.0"
