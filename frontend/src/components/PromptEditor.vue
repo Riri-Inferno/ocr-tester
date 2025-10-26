@@ -32,15 +32,22 @@ const usePdfDirectly = ref(true);
 watch(
   () => props.selectedPrompt,
   async (newPrompt) => {
-    if (newPrompt && newPrompt.id) {
-      // IDで詳細を取得（promptContentを含む完全なデータ）
-      try {
-        const fullPrompt = await fetchPromptById(newPrompt.id);
-        displayPrompt.value = fullPrompt;
-        promptName.value = fullPrompt.name;
-        promptContent.value = fullPrompt.promptContent;
-      } catch (error) {
-        console.error("Failed to fetch prompt details:", error);
+    if (newPrompt) {
+      if (newPrompt.id) {
+        // 既存のプロンプト：IDで詳細を取得
+        try {
+          const fullPrompt = await fetchPromptById(newPrompt.id);
+          displayPrompt.value = fullPrompt;
+          promptName.value = fullPrompt.name;
+          promptContent.value = fullPrompt.promptContent;
+        } catch (error) {
+          console.error("Failed to fetch prompt details:", error);
+        }
+      } else {
+        // 新規作成：空のプロンプトをそのまま使用
+        displayPrompt.value = null; // 新規なのでnull
+        promptName.value = "";
+        promptContent.value = "";
       }
     }
   }

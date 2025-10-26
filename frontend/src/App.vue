@@ -12,7 +12,6 @@ const hasPdfFile = ref(false);
 
 const handlePromptSelected = (prompt: any) => {
   selectedPrompt.value = prompt;
-  console.log("App.vue - handlePromptSelected:", prompt); // 追加
 };
 
 const handleReloadRequested = () => {
