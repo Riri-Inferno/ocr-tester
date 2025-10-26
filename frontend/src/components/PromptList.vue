@@ -67,7 +67,30 @@ const handleCreateNew = () => {
 
 // 再読み込みボタンの処理（親から呼ばれる想定）
 const reload = async () => {
+  const currentSelectedId = selectedId.value;
+
   await loadPromptList();
+
+  // 削除されたプロンプトが選択されていた場合
+  const stillExists = promptList.value.some((p) => p.id === currentSelectedId);
+
+  if (!stillExists && promptList.value.length > 0) {
+    // 削除されていたら、最初のプロンプトを選択
+    selectedId.value = null;
+    const firstPrompt = promptList.value[0];
+    if (firstPrompt) {
+      // undefined チェック
+      selectedId.value = firstPrompt.id;
+      await fetchPromptById(firstPrompt.id);
+      if (currentPrompt.value) {
+        emit("promptSelected", currentPrompt.value);
+      }
+    }
+  } else if (promptList.value.length === 0) {
+    // プロンプトが0件になった場合
+    selectedId.value = null;
+    emit("promptSelected", null);
+  }
 };
 
 // 初期読み込み
@@ -108,13 +131,6 @@ defineExpose({
 
     <div v-if="promptList.length === 0" class="empty-state">
       プロンプトがありません
-      <button
-        class="button button-primary"
-        @click="handleCreateNew"
-        style="margin-top: 1rem"
-      >
-        <span>➕</span> 最初のプロンプトを作成
-      </button>
     </div>
   </div>
 </template>

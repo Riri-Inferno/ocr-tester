@@ -32,7 +32,12 @@ const usePdfDirectly = ref(true);
 watch(
   () => props.selectedPrompt,
   async (newPrompt) => {
-    if (newPrompt) {
+    if (newPrompt === null) {
+      // プロンプトが0件の場合
+      displayPrompt.value = null;
+      promptName.value = "";
+      promptContent.value = "";
+    } else if (newPrompt) {
       if (newPrompt.id) {
         // 既存のプロンプト：IDで詳細を取得
         try {
