@@ -1,25 +1,30 @@
-export interface ActivePrompt {
-  id: string
-  promptContent: string
-  version: number
-  isDeleted: boolean
-  createdAt: string
-  updatedAt: string
+export interface Prompt {
+  id: string;
+  name: string;
+  promptContent: string;
+  version?: number;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
 }
 
 export interface CreatePromptRequest {
-  promptContent: string
+  name: string;
+  promptContent: string;
+  userId?: string;
 }
 
 export interface ApiError {
-  message: string
-  code?: string
+  message: string;
+  code?: string;
 }
 
-export interface OcrPromptVersionInfo {
-  id: string
-  version: number
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
+export interface PromptInfo {
+  id: string;
+  name: string;
+  version?: number;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
 }

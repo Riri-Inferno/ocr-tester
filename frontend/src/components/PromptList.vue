@@ -1,113 +1,96 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { usePromptApi } from '../composables/usePromptApi'
+import { ref, onMounted } from "vue";
+import { usePromptApi } from "../composables/usePromptApi";
+import type { PromptInfo } from "../types/prompt";
 
-const { 
-  versionList, 
-  fetchVersionList, 
-  fetchPromptByVersion,
-  activePrompt 
-} = usePromptApi()
+const { promptList, fetchPromptList, fetchPromptById, currentPrompt } =
+  usePromptApi();
 
 const emit = defineEmits<{
-  promptSelected: [prompt: any]
-}>()
+  promptSelected: [prompt: any];
+}>();
 
-const selectedVersion = ref<number | null>(null)
+const selectedId = ref<string | null>(null);
+const firstPrompt = ref<PromptInfo | undefined>();
 
-// バージョンリストを取得
-const loadVersionList = async () => {
+// プロンプト一覧を取得
+const loadPromptList = async () => {
   try {
-    await fetchVersionList()
-    // 有効なバージョンを自動選択
-    const activeVersion = versionList.value.find(v => v.isActive)
-    if (activeVersion) {
-      selectedVersion.value = activeVersion.version
-      await fetchPromptByVersion(activeVersion.version)
-      // 親コンポーネントに通知
-      if (activePrompt.value) {
-        emit('promptSelected', {
-          ...activePrompt.value,
-          isActive: activeVersion.isActive
-        })
+    await fetchPromptList();
+    // 初回は最初のプロンプトを選択
+    if (promptList.value.length > 0 && !selectedId.value) {
+      firstPrompt.value = promptList.value[0];
+      if (firstPrompt.value) {
+        selectedId.value = firstPrompt.value.id;
+        await fetchPromptById(firstPrompt.value.id);
+        if (currentPrompt.value) {
+          emit("promptSelected", currentPrompt.value);
+        }
       }
     }
   } catch (error) {
-    console.error('Failed to load version list:', error)
+    console.error("Failed to load prompt list:", error);
   }
-}
+};
 
-// バージョンクリック時の処理
-const handleVersionClick = async (version: number) => {
-  selectedVersion.value = version
+// プロンプトクリック時の処理
+const handlePromptClick = async (id: string) => {
+  selectedId.value = id;
   try {
-    // 選択されたバージョンの完全な情報を取得
-    const selectedVersionInfo = versionList.value.find(v => v.version === version)
-    
-    await fetchPromptByVersion(version)
-    
+    await fetchPromptById(id);
+
     // デバッグ用
-    console.log('selectedVersionInfo:', selectedVersionInfo)
-    console.log('activePrompt.value:', activePrompt.value)
-    
-    // 親コンポーネントに通知（versionListからisActive情報を取得）
-    if (activePrompt.value && selectedVersionInfo) {
-      const promptToEmit = {
-        ...activePrompt.value,
-        isActive: selectedVersionInfo.isActive
-      }
-      console.log('Emitting prompt:', promptToEmit)
-      emit('promptSelected', promptToEmit)
+    console.log("currentPrompt.value:", currentPrompt.value);
+
+    // 親コンポーネントに通知
+    if (currentPrompt.value) {
+      emit("promptSelected", currentPrompt.value);
     }
   } catch (error) {
-    console.error('Failed to load prompt:', error)
+    console.error("Failed to load prompt:", error);
   }
-}
+};
 
 // 再読み込みボタンの処理（親から呼ばれる想定）
 const reload = async () => {
-  await loadVersionList()
-}
+  await loadPromptList();
+};
 
 // 初期読み込み
 onMounted(() => {
-  loadVersionList()
-})
+  loadPromptList();
+});
 
 // 親コンポーネントに公開
 defineExpose({
-  reload
-})
+  reload,
+});
 </script>
 
 <template>
   <div class="prompt-list">
     <div class="list-header">
-      <h2 class="list-title">プロンプト変更履歴</h2>
-      <!-- <button class="reload-button" @click="loadVersionList">
-        <span>🔄</span> 更新
-      </button> -->
+      <h2 class="list-title">プロンプト一覧</h2>
     </div>
-    
+
     <ul class="prompt-items">
-      <li 
-        v-for="prompt in versionList" 
+      <li
+        v-for="prompt in promptList"
         :key="prompt.id"
-        :class="['prompt-item', { active: selectedVersion === prompt.version }]"
-        @click="handleVersionClick(prompt.version)"
+        :class="['prompt-item', { active: selectedId === prompt.id }]"
+        @click="handlePromptClick(prompt.id)"
       >
         <div class="prompt-info">
-          <span class="prompt-name">Version {{ prompt.version }}</span>
-          <span class="prompt-date">{{ new Date(prompt.createdAt).toLocaleDateString('ja-JP') }}</span>
+          <span class="prompt-name">{{ prompt.name }}</span>
+          <span class="prompt-date">{{
+            new Date(prompt.createdAt).toLocaleDateString("ja-JP")
+          }}</span>
         </div>
-        <span :class="['status-badge', { active: prompt.isActive }]">
-          {{ prompt.isActive ? '有効' : '無効' }}
-        </span>
       </li>
     </ul>
 
-    <div v-if="versionList.length === 0" class="empty-state">
-      履歴がありません
+    <div v-if="promptList.length === 0" class="empty-state">
+      プロンプトがありません
     </div>
   </div>
 </template>
