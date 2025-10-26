@@ -12,12 +12,20 @@ export function usePromptApi() {
   /**
    * プロンプトを保存
    */
-  const savePrompt = async (name: string, promptContent: string) => {
+  const savePrompt = async (
+    name: string,
+    promptContent: string,
+    id?: string
+  ) => {
     loading.value = true;
     error.value = null;
 
     try {
-      const data = await promptRepository.upsertPrompt({ name, promptContent });
+      const data = await promptRepository.upsertPrompt({
+        id,
+        name,
+        promptContent,
+      });
       currentPrompt.value = data;
       return data;
     } catch (err) {
