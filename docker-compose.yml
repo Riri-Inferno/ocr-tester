@@ -10,3 +10,18 @@ services:
       - ./backend/service_account.json:/var/secrets/gcp-key.json:ro
     env_file:
       - ./backend/.env
+
+  frontend:
+    build: ./frontend
+    container_name: ocr-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://backend:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    env_file:
+      - ./frontend/.env.development
