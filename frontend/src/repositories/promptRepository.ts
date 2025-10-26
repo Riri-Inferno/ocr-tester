@@ -83,7 +83,6 @@ export const promptRepository = {
         id: newId,
         name: data.name,
         promptContent: data.promptContent,
-        isDeleted: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         userId: data.userId,

@@ -3,7 +3,6 @@ export interface Prompt {
   name: string;
   promptContent: string;
   version?: number;
-  isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
   userId?: string;
