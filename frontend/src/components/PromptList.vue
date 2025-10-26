@@ -38,11 +38,6 @@ const handlePromptClick = async (id: string) => {
   selectedId.value = id;
   try {
     await fetchPromptById(id);
-
-    // デバッグ用
-    console.log("currentPrompt.value:", currentPrompt.value);
-
-    // 親コンポーネントに通知
     if (currentPrompt.value) {
       emit("promptSelected", currentPrompt.value);
     }
@@ -51,9 +46,51 @@ const handlePromptClick = async (id: string) => {
   }
 };
 
+// 新規作成
+const handleCreateNew = () => {
+  // 選択を解除
+  selectedId.value = null;
+
+  // 空のプロンプトを作成
+  const newPrompt = {
+    id: null,
+    name: "",
+    promptContent: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    userId: null,
+  };
+
+  // 親コンポーネントに通知
+  emit("promptSelected", newPrompt);
+};
+
 // 再読み込みボタンの処理（親から呼ばれる想定）
 const reload = async () => {
+  const currentSelectedId = selectedId.value;
+
   await loadPromptList();
+
+  // 削除されたプロンプトが選択されていた場合
+  const stillExists = promptList.value.some((p) => p.id === currentSelectedId);
+
+  if (!stillExists && promptList.value.length > 0) {
+    // 削除されていたら、最初のプロンプトを選択
+    selectedId.value = null;
+    const firstPrompt = promptList.value[0];
+    if (firstPrompt) {
+      // undefined チェック
+      selectedId.value = firstPrompt.id;
+      await fetchPromptById(firstPrompt.id);
+      if (currentPrompt.value) {
+        emit("promptSelected", currentPrompt.value);
+      }
+    }
+  } else if (promptList.value.length === 0) {
+    // プロンプトが0件になった場合
+    selectedId.value = null;
+    emit("promptSelected", null);
+  }
 };
 
 // 初期読み込み
@@ -71,6 +108,9 @@ defineExpose({
   <div class="prompt-list">
     <div class="list-header">
       <h2 class="list-title">プロンプト一覧</h2>
+      <button class="button button-primary" @click="handleCreateNew">
+        <span>➕</span> 新規作成
+      </button>
     </div>
 
     <ul class="prompt-items">
@@ -208,6 +248,113 @@ defineExpose({
 .prompt-item.active .status-badge {
   background: rgba(255, 255, 255, 0.3);
   color: white;
+}
+
+.empty-state {
+  text-align: center;
+  color: #6c757d;
+  padding: 2rem;
+  font-size: 0.875rem;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+
+.button-primary {
+  background: #667eea;
+  color: white;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #5a67d8;
+}
+
+/* その他既存のスタイル */
+.prompt-list {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.list-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.prompt-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.prompt-items::-webkit-scrollbar {
+  display: none;
+}
+
+.prompt-item {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.prompt-item:hover {
+  background: #e9ecef;
+}
+
+.prompt-item.active {
+  background: #5eb0f9;
+  color: white;
+}
+
+.prompt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.prompt-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.prompt-date {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.prompt-item.active .prompt-date {
+  opacity: 0.9;
 }
 
 .empty-state {

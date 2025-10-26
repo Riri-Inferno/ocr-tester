@@ -9,6 +9,7 @@ export interface Prompt {
 }
 
 export interface CreatePromptRequest {
+  id?: string;
   name: string;
   promptContent: string;
   userId?: string;

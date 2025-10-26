@@ -14,7 +14,7 @@
 
 <style scoped>
 .app-header {
-  background: linear-gradient(135deg, #7aa1f0 60%, #764ba2 100%);
+  background: linear-gradient(135deg, #a8e063 10%, #56ab2f 100%);
   color: white;
   padding: 1.5rem 2rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);

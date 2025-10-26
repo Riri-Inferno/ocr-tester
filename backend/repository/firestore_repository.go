@@ -122,7 +122,11 @@ func (r *promptFirestoreRepository) FindAll(ctx context.Context) ([]*domain.Prom
         OrderBy("createdAt", firestore.Desc).
         Documents(ctx)
     
-    var prompts []*domain.Prompt
+    defer iter.Stop()
+    
+    // 空の配列で初期化（nilではなく）
+    prompts := make([]*domain.Prompt, 0)
+    
     for {
         doc, err := iter.Next()
         if err == iterator.Done {
@@ -140,7 +144,7 @@ func (r *promptFirestoreRepository) FindAll(ctx context.Context) ([]*domain.Prom
         prompts = append(prompts, &prompt)
     }
     
-    return prompts, nil
+    return prompts, nil  // 0件でも空の配列を返す
 }
 
 // Delete は指定IDのプロンプトを物理削除する

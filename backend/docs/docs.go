@@ -281,7 +281,7 @@ const docTemplate = `{
                 "updatedAt": {
                     "type": "string"
                 },
-                "userID": {
+                "userId": {
                     "type": "string"
                 }
             }

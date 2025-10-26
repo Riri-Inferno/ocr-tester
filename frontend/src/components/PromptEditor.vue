@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { usePromptApi } from "../composables/usePromptApi";
 import { useOcrApi } from "../composables/useOcrApi";
 
+const isInitialized = ref(false);
 const props = defineProps<{
   selectedPrompt?: any;
   pdfViewerRef?: any;
@@ -13,23 +14,16 @@ const emit = defineEmits<{
   reloadRequested: [];
 }>();
 
-const { loading, error, activePrompt, fetchActivePrompt, savePrompt } =
+const { loading, error, savePrompt, fetchPromptById, deletePrompt } =
   usePromptApi();
 const { testOcr, ocrResult, loading: ocrLoading } = useOcrApi();
 
+const promptName = ref("");
 const promptContent = ref("");
 const isSaving = ref(false);
-const savedVersion = ref<number | null>(null);
+const isDeleting = ref(false);
 const displayPrompt = ref<any>(null);
 const isCopying = ref(false);
-
-// 初期化フラグ（最初の表示かどうか）
-const isInitialized = ref(false);
-
-// プロンプトが有効かどうかを判定
-const isActivePrompt = computed(() => {
-  return displayPrompt.value?.isActive || false;
-});
 
 // PDFダイレクト送信フラグ
 const usePdfDirectly = ref(true);
@@ -37,56 +31,115 @@ const usePdfDirectly = ref(true);
 // 選択されたプロンプトを監視
 watch(
   () => props.selectedPrompt,
-  (newPrompt) => {
-    if (newPrompt) {
-      displayPrompt.value = newPrompt;
-      promptContent.value = newPrompt.promptContent;
-      savedVersion.value = newPrompt.version;
+  async (newPrompt) => {
+    if (newPrompt === null) {
+      // プロンプトが0件の場合
+      displayPrompt.value = null;
+      promptName.value = "";
+      promptContent.value = "";
+    } else if (newPrompt) {
+      if (newPrompt.id) {
+        // 既存のプロンプト：IDで詳細を取得
+        try {
+          const fullPrompt = await fetchPromptById(newPrompt.id);
+          displayPrompt.value = fullPrompt;
+          promptName.value = fullPrompt.name;
+          promptContent.value = fullPrompt.promptContent;
+        } catch (error) {
+          console.error("Failed to fetch prompt details:", error);
+        }
+      } else {
+        // 新規作成：空のプロンプトをそのまま使用
+        displayPrompt.value = null; // 新規なのでnull
+        promptName.value = "";
+        promptContent.value = "";
+      }
     }
   }
 );
 
-// プロンプトを読み込む共通関数
-const loadPrompt = async () => {
-  try {
-    await fetchActivePrompt();
-    if (activePrompt.value && !props.selectedPrompt) {
-      displayPrompt.value = activePrompt.value;
-      promptContent.value = activePrompt.value.promptContent;
-      savedVersion.value = activePrompt.value.version;
-    }
-  } catch {
-    // エラーはcomposable内で処理
-  } finally {
-    isInitialized.value = true;
+// コンポーネントマウント時の処理
+onMounted(() => {
+  isInitialized.value = true;
+  // 初回マウント時、既に選択されたプロンプトがあれば反映
+  if (props.selectedPrompt) {
+    displayPrompt.value = props.selectedPrompt;
+    promptName.value = props.selectedPrompt.name;
+    promptContent.value = props.selectedPrompt.promptContent;
   }
-};
-
-// コンポーネントマウント時に現在のプロンプトを取得
-onMounted(async () => {
-  await loadPrompt();
 });
 
 // 再読み込み
 const reloadPrompt = async () => {
-  await loadPrompt();
+  if (displayPrompt.value?.id) {
+    try {
+      const prompt = await fetchPromptById(displayPrompt.value.id);
+      displayPrompt.value = prompt;
+      promptName.value = prompt.name;
+      promptContent.value = prompt.promptContent;
+    } catch {
+      // エラーはcomposable内で処理
+    }
+  }
   emit("reloadRequested");
 };
 
-// プロンプトを保存
-const handleSavePrompt = async () => {
+// 更新（既存のプロンプトを上書き保存）
+const handleUpdatePrompt = async () => {
+  if (!displayPrompt.value) return;
+
   isSaving.value = true;
   try {
-    const result = await savePrompt(promptContent.value);
+    const result = await savePrompt(
+      promptName.value,
+      promptContent.value,
+      displayPrompt.value.id
+    );
     if (result) {
-      savedVersion.value = result.version;
-      alert(`プロンプトを保存しました（バージョン ${result.version}）`);
+      alert("プロンプトを更新しました");
+      emit("reloadRequested");
+    }
+  } catch {
+    alert("プロンプトの更新に失敗しました");
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// 新しいプロンプトとして保存
+const handleSaveAsNewPrompt = async () => {
+  isSaving.value = true;
+  try {
+    const result = await savePrompt(promptName.value, promptContent.value);
+    if (result) {
+      alert("新しいプロンプトとして保存しました");
       emit("reloadRequested");
     }
   } catch {
     alert("プロンプトの保存に失敗しました");
   } finally {
     isSaving.value = false;
+  }
+};
+
+// プロンプトを削除
+const handleDeletePrompt = async () => {
+  if (!displayPrompt.value) return;
+
+  if (confirm(`「${displayPrompt.value.name}」を削除しますか？`)) {
+    isDeleting.value = true;
+    try {
+      await deletePrompt(displayPrompt.value.id);
+      alert("プロンプトを削除しました");
+      displayPrompt.value = null;
+      promptName.value = "";
+      promptContent.value = "";
+      emit("reloadRequested");
+    } catch {
+      alert("プロンプトの削除に失敗しました");
+    } finally {
+      isDeleting.value = false;
+    }
   }
 };
 
@@ -175,19 +228,31 @@ const copyOcrResult = async () => {
         >
           <span>🔄</span> {{ loading ? "読み込み中..." : "再読み込み" }}
         </button>
-        <div class="save-button-wrapper">
-          <button
-            class="button button-primary"
-            @click="handleSavePrompt"
-            :disabled="loading || isSaving || !displayPrompt"
-          >
-            <span>💾</span>
-            {{ isSaving ? "保存中..." : "新しいバージョンとして保存" }}
-          </button>
-          <span class="button-caption"
-            >このバージョンをベースに新しいバージョンを作成します</span
-          >
-        </div>
+        <button
+          class="button button-danger"
+          @click="handleDeletePrompt"
+          :disabled="loading || isDeleting || !displayPrompt"
+          v-if="displayPrompt"
+        >
+          <span>🗑️</span> {{ isDeleting ? "削除中..." : "削除" }}
+        </button>
+        <button
+          class="button button-primary"
+          @click="handleUpdatePrompt"
+          :disabled="loading || isSaving || !displayPrompt"
+          v-if="displayPrompt"
+        >
+          <span>💾</span>
+          {{ isSaving ? "更新中..." : "更新" }}
+        </button>
+        <button
+          class="button button-secondary"
+          @click="handleSaveAsNewPrompt"
+          :disabled="loading || isSaving || !promptName || !promptContent"
+        >
+          <span>➕</span>
+          {{ isSaving ? "保存中..." : "新しいプロンプトとして保存" }}
+        </button>
       </div>
     </div>
 
@@ -196,11 +261,11 @@ const copyOcrResult = async () => {
       <div v-if="error" class="error-message">⚠️ {{ error.message }}</div>
 
       <!-- ローディング表示 -->
-      <div v-if="loading && !isInitialized" class="loading">読み込み中...</div>
+      <div v-if="loading" class="loading">読み込み中...</div>
 
-      <!-- プロンプト編集エリア（常に表示）-->
+      <!-- プロンプト編集エリア -->
       <div v-else>
-        <!-- プロンプトIDとバージョンは既存のプロンプトがある場合のみ表示 -->
+        <!-- プロンプト情報 -->
         <div v-if="displayPrompt">
           <div class="form-group">
             <label class="form-label">プロンプトID</label>
@@ -211,25 +276,20 @@ const copyOcrResult = async () => {
               readonly
             />
           </div>
-
-          <div class="form-group">
-            <label class="form-label">バージョン</label>
-            <div class="version-info">
-              <input
-                type="text"
-                class="form-input"
-                :value="`Version ${displayPrompt.version}`"
-                readonly
-              />
-              <span v-if="isActivePrompt" class="version-badge active">
-                有効
-              </span>
-              <span v-else class="version-badge inactive"> 無効 </span>
-            </div>
-          </div>
         </div>
 
-        <!-- プロンプト内容は常に編集可能 -->
+        <!-- プロンプト名 -->
+        <div class="form-group">
+          <label class="form-label">プロンプト名</label>
+          <input
+            type="text"
+            class="form-input"
+            v-model="promptName"
+            placeholder="プロンプト名を入力してください..."
+          />
+        </div>
+
+        <!-- プロンプト内容 -->
         <div class="form-group">
           <label class="form-label">プロンプト内容</label>
           <textarea
@@ -239,7 +299,7 @@ const copyOcrResult = async () => {
             placeholder="プロンプトを入力してください..."
           ></textarea>
 
-          <!-- 処理方式トグルを追加 -->
+          <!-- 処理方式トグル -->
           <div class="processing-options">
             <label class="toggle-label">
               処理方式:
@@ -273,9 +333,7 @@ const copyOcrResult = async () => {
             <button
               class="button button-ocr"
               @click="runOcrTest"
-              :disabled="
-                ocrLoading || !displayPrompt || !props.pdfViewerRef?.hasPdf
-              "
+              :disabled="ocrLoading || !props.pdfViewerRef?.hasPdf"
               :title="
                 !props.pdfViewerRef?.hasPdf
                   ? 'PDFファイルを選択してください'
@@ -288,15 +346,19 @@ const copyOcrResult = async () => {
           </div>
         </div>
 
-        <!-- メタデータは既存のプロンプトがある場合のみ表示 -->
+        <!-- メタデータ -->
         <div v-if="displayPrompt" class="metadata">
           <p>
-            プロンプト作成日時:
+            作成日時:
             {{ new Date(displayPrompt.createdAt).toLocaleString("ja-JP") }}
+          </p>
+          <p>
+            更新日時:
+            {{ new Date(displayPrompt.updatedAt).toLocaleString("ja-JP") }}
           </p>
         </div>
 
-        <!-- OCR結果表示エリア -->
+        <!-- OCR結果表示エリア（変更なし） -->
         <div v-if="ocrResult" class="ocr-result-container">
           <div class="ocr-result-header">
             <h4>OCR結果</h4>
@@ -313,12 +375,8 @@ const copyOcrResult = async () => {
                   : "画像変換"
               }}
             </span>
-            <span class="info-item" v-if="ocrResult.promptVersion > 0">
-              <strong>プロンプトVer:</strong> {{ ocrResult.promptVersion }}
-            </span>
           </div>
           <pre class="ocr-result-content">{{ ocrResult.ocrResult }}</pre>
-          <!-- コピーボタンをここに追加 -->
           <div class="ocr-result-actions">
             <button
               class="button button-secondary ocr-copy-button"
@@ -706,5 +764,14 @@ const copyOcrResult = async () => {
 
 .toggle-input:checked + .toggle-slider:hover {
   background-color: #138496;
+}
+
+.button-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.button-danger:hover:not(:disabled) {
+  background: #c82333;
 }
 </style>
