@@ -1,6 +1,43 @@
 # 環境変数
 .env
+.env.local
+.env.*.local
+.env.development
 
 # GCPサービスアカウント鍵
-service_account.json
+backend/service_account.json
 
+# Go
+backend/vendor/
+backend/server
+
+# Node.js / フロントエンド
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# エディタ・IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# テスト関連
+*.test
+*.out
+coverage/
+
+# ビルド成果物
+build/
+dist/
