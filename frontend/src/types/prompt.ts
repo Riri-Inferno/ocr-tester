@@ -1,4 +1,4 @@
-export interface ActivePrompt {
+export interface Prompt {
   id: string;
   name: string;
   promptContent: string;
@@ -24,7 +24,6 @@ export interface PromptInfo {
   id: string;
   name: string;
   version?: number;
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
   userId?: string;

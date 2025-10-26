@@ -1,106 +1,114 @@
-import { ref } from 'vue'
-import type{ Ref } from 'vue'
-import { promptRepository } from '../repositories/promptRepository'
-import type { ActivePrompt, ApiError, OcrPromptVersionInfo } from '../types/prompt'
+import { ref } from "vue";
+import type { Ref } from "vue";
+import { promptRepository } from "../repositories/promptRepository";
+import type { Prompt, ApiError, PromptInfo } from "../types/prompt";
 
 export function usePromptApi() {
-  const loading: Ref<boolean> = ref(false)
-  const error: Ref<ApiError | null> = ref(null)
-  const activePrompt: Ref<ActivePrompt | null> = ref(null)
-  const versionList: Ref<OcrPromptVersionInfo[]> = ref([])
+  const loading: Ref<boolean> = ref(false);
+  const error: Ref<ApiError | null> = ref(null);
+  const currentPrompt: Ref<Prompt | null> = ref(null);
+  const promptList: Ref<PromptInfo[]> = ref([]);
 
   /**
-   * 現在有効なプロンプトを取得
+   * プロンプトを保存
    */
-  const fetchActivePrompt = async () => {
-    loading.value = true
-    error.value = null
-    
+  const savePrompt = async (name: string, promptContent: string) => {
+    loading.value = true;
+    error.value = null;
+
     try {
-      const data = await promptRepository.getActivePrompt()
-      activePrompt.value = data
-      return data
+      const data = await promptRepository.upsertPrompt({ name, promptContent });
+      currentPrompt.value = data;
+      return data;
     } catch (err) {
       error.value = {
-        message: err instanceof Error ? err.message : '不明なエラーが発生しました',
-      }
-      throw err
+        message:
+          err instanceof Error ? err.message : "不明なエラーが発生しました",
+      };
+      throw err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
   /**
-   * プロンプトを新バージョンとして保存
+   * プロンプト一覧を取得
    */
-  const savePrompt = async (promptContent: string) => {
-    loading.value = true
-    error.value = null
-    
+  const fetchPromptList = async () => {
+    loading.value = true;
+    error.value = null;
+
     try {
-      const data = await promptRepository.upsertPrompt({ promptContent })
-      activePrompt.value = data
-      return data
+      const data = await promptRepository.getPromptList();
+      promptList.value = data;
+      return data;
     } catch (err) {
       error.value = {
-        message: err instanceof Error ? err.message : '不明なエラーが発生しました',
-      }
-      throw err
+        message:
+          err instanceof Error ? err.message : "不明なエラーが発生しました",
+      };
+      throw err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
   /**
-   * バージョンリストを取得
+   * 特定のプロンプトを取得
    */
-  const fetchVersionList = async () => {
-    loading.value = true
-    error.value = null
-    
+  const fetchPromptById = async (id: string) => {
+    loading.value = true;
+    error.value = null;
+
     try {
-      const data = await promptRepository.getVersionList()
-      versionList.value = data
-      return data
+      const data = await promptRepository.getPromptById(id);
+      currentPrompt.value = data;
+      return data;
     } catch (err) {
       error.value = {
-        message: err instanceof Error ? err.message : '不明なエラーが発生しました',
-      }
-      throw err
+        message:
+          err instanceof Error ? err.message : "不明なエラーが発生しました",
+      };
+      throw err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
   /**
-   * 特定バージョンのプロンプトを取得
+   * プロンプトを削除
    */
-  const fetchPromptByVersion = async (version: number) => {
-    loading.value = true
-    error.value = null
-    
+  const deletePrompt = async (id: string) => {
+    loading.value = true;
+    error.value = null;
+
     try {
-      const data = await promptRepository.getPromptByVersion(version)
-      activePrompt.value = data
-      return data
+      await promptRepository.deletePrompt(id);
+      // 削除後、リストから該当項目を除外
+      promptList.value = promptList.value.filter((p) => p.id !== id);
+      // 現在のプロンプトが削除された場合はクリア
+      if (currentPrompt.value?.id === id) {
+        currentPrompt.value = null;
+      }
     } catch (err) {
       error.value = {
-        message: err instanceof Error ? err.message : '不明なエラーが発生しました',
-      }
-      throw err
+        message:
+          err instanceof Error ? err.message : "不明なエラーが発生しました",
+      };
+      throw err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
   return {
     loading,
     error,
-    activePrompt,
-    versionList,
-    fetchActivePrompt,
+    currentPrompt,
+    promptList,
     savePrompt,
-    fetchVersionList,
-    fetchPromptByVersion,
-  }
+    fetchPromptList,
+    fetchPromptById,
+    deletePrompt,
+  };
 }
