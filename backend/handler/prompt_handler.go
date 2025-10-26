@@ -28,22 +28,22 @@ func NewPromptHandler(repo repository.PromptRepository) *PromptHandler {
 // @Failure 500 {object} map[string]string
 // @Router /api/prompts [get]
 func (h *PromptHandler) GetPrompts(w http.ResponseWriter, r *http.Request) {
-   ctx := r.Context()
+    ctx := r.Context()
 
-   prompts, err := h.Repo.FindAll(ctx)
-   if err != nil {
-       http.Error(w, `{"error":"failed to get prompts"}`, http.StatusInternalServerError)
-       return
-   }
+    prompts, err := h.Repo.FindAll(ctx)
+    if err != nil {
+        http.Error(w, `{"error":"failed to get prompts"}`, http.StatusInternalServerError)
+        return
+    }
 
-   // PromptInfoのリストに変換
-   var infos []domain.PromptInfo
-   for _, p := range prompts {
-       infos = append(infos, p.ToInfo())
-   }
+    // 空の配列で初期化
+    infos := make([]domain.PromptInfo, 0, len(prompts))
+    for _, p := range prompts {
+        infos = append(infos, p.ToInfo())
+    }
 
-   w.Header().Set("Content-Type", "application/json")
-   json.NewEncoder(w).Encode(infos)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(infos)
 }
 
 // GetPromptByID は指定IDのプロンプトを取得
