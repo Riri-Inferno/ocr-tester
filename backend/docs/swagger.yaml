@@ -1,19 +1,4 @@
 definitions:
-  domain.OCRResult:
-    properties:
-      createdAt:
-        description: レコード作成日時
-        type: string
-      extractedText:
-        description: OCR により抽出されたテキスト
-        type: string
-      fileName:
-        description: 処理対象のファイル名
-        type: string
-      id:
-        description: Firestore のドキュメント ID
-        type: string
-    type: object
   domain.Prompt:
     properties:
       createdAt:
@@ -42,6 +27,23 @@ definitions:
       userId:
         type: string
     type: object
+  service.OCRResponse:
+    properties:
+      ocrResult:
+        type: string
+      processingMethod:
+        $ref: '#/definitions/service.ProcessingMethod'
+      promptVersion:
+        type: integer
+    type: object
+  service.ProcessingMethod:
+    enum:
+    - pdf_direct
+    - image_direct
+    type: string
+    x-enum-varnames:
+    - ProcessingMethodPDFDirect
+    - ProcessingMethodImageDirect
 info:
   contact: {}
 paths:
@@ -60,46 +62,6 @@ paths:
       summary: Hello World メッセージを返す
       tags:
       - General
-  /api/ocr-result/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve a specific OCR result stored in Firestore by document
-        ID.
-      parameters:
-      - description: OCR document ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.OCRResult'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get OCR result by ID
-      tags:
-      - OCR
   /api/prompts:
     get:
       description: Retrieve all prompts (excluding deleted)
@@ -194,4 +156,42 @@ paths:
       summary: Create or update prompt
       tags:
       - Prompts
+  /api/test-ocr:
+    post:
+      consumes:
+      - multipart/form-data
+      description: PDFまたは画像ファイルからテキストを抽出
+      parameters:
+      - description: PDFまたは画像ファイル
+        in: formData
+        name: PdfFile
+        required: true
+        type: file
+      - description: カスタムプロンプト
+        in: formData
+        name: CustomPrompt
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/service.OCRResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OCR処理を実行
+      tags:
+      - OCR
 swagger: "2.0"
