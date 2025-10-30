@@ -164,9 +164,9 @@ func (c *GeminiClient) ProcessImage(ctx context.Context, imageData []byte, mimeT
             Error APIError `json:"error"`
         }
         if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error.Message != "" {
-            return "", fmt.Errorf("Gemini API error (status %d): %s", resp.StatusCode, errResp.Error.Message)
+            return "", fmt.Errorf("gemini api error (status %d): %s", resp.StatusCode, errResp.Error.Message)
         }
-        return "", fmt.Errorf("Gemini API returned status %d: %s", resp.StatusCode, string(body))
+        return "", fmt.Errorf("gemini api returned status %d: %s", resp.StatusCode, string(body))
     }
 
     // レスポンスをパース
