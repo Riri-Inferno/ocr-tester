@@ -14,6 +14,7 @@ import (
 
 	"ocr-tester/handler"
 	"ocr-tester/repository"
+	"ocr-tester/service"
 
 	_ "ocr-tester/docs"
 
@@ -22,7 +23,6 @@ import (
 
 // Firestore コレクション名
 const (
-   ocrCollectionName    = "ocr_results"
    promptCollectionName = "prompts"
 )
 
@@ -45,10 +45,16 @@ func main() {
        log.Fatalf("Firestore クライアントの初期化に失敗しました: %v", err)
    }
    defer fsClient.Close()
-
-   // リポジトリとハンドラを初期化
-   ocrRepo := repository.NewFirestoreRepository(fsClient, ocrCollectionName)
-   ocrHandler := handler.NewOcrHandler(ocrRepo)
+   
+   // OCRサービスを初期化（Gemini用）
+   location := os.Getenv("GEMINI_LOCATION")
+   if location == "" {
+       location = "us-central1"
+   }
+   ocrService := service.NewOCRService(projectID, location)
+   
+   // OCRハンドラを初期化（新しい形式）
+   ocrHandler := handler.NewOcrHandler(ocrService)
 
    promptRepo := repository.NewPromptFirestoreRepository(fsClient, promptCollectionName)
    promptHandler := handler.NewPromptHandler(promptRepo)
@@ -59,8 +65,8 @@ func main() {
    // 動作確認用エンドポイント
    r.Get("/api/hello", helloHandler)
 
-   // OCR結果取得エンドポイント
-   r.Get("/api/ocr-result/{id}", ocrHandler.GetOCRResultByID)
+   // OCRテストエンドポイント
+   r.Post("/api/test-ocr", ocrHandler.TestOCR)
 
    // プロンプトエンドポイント
    r.Get("/api/prompts", promptHandler.GetPrompts)
