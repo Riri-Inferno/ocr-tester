@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"ocr-tester/domain"
 	"ocr-tester/service"
 )
 
@@ -27,7 +28,7 @@ func NewOcrHandler(ocrService *service.OCRService) *OcrHandler {
 // @Produce json
 // @Param PdfFile formData file true "PDFまたは画像ファイル"
 // @Param CustomPrompt formData string true "カスタムプロンプト"
-// @Success 200 {object} service.OCRResponse
+// @Success 200 {object} domain.OCRResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/test-ocr [post]
@@ -54,7 +55,7 @@ func (h *OcrHandler) TestOCR(w http.ResponseWriter, r *http.Request) {
     }
 
     // OCRリクエストを構築
-    ocrRequest := &service.OCRRequest{
+    ocrRequest := &domain.OCRRequest{
         File:         file,
         FileName:     fileHeader.Filename,
         FileSize:     fileHeader.Size,

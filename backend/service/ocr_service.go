@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"ocr-tester/domain"
 	"ocr-tester/utils"
 )
 
@@ -19,31 +20,8 @@ func NewOCRService(projectID, location string) *OCRService {
     }
 }
 
-// ProcessingMethod
-type ProcessingMethod string
-
-const (
-    ProcessingMethodPDFDirect   ProcessingMethod = "pdf_direct"
-    ProcessingMethodImageDirect ProcessingMethod = "image_direct"
-)
-
-// OCRRequest
-type OCRRequest struct {
-    File         io.Reader
-    FileName     string
-    FileSize     int64
-    CustomPrompt string
-}
-
-// OCRResponse
-type OCRResponse struct {
-    OCRResult        string           `json:"ocrResult"`
-    PromptVersion    int              `json:"promptVersion"`
-    ProcessingMethod ProcessingMethod `json:"processingMethod"`
-}
-
 // OCR処理を実行
-func (s *OCRService) ProcessOCR(ctx context.Context, req *OCRRequest) (*OCRResponse, error) {
+func (s *OCRService) ProcessOCR(ctx context.Context, req *domain.OCRRequest) (*domain.OCRResponse, error) {
     // プロンプトの検証
     if req.CustomPrompt == "" {
         return nil, fmt.Errorf("custom prompt is required")
@@ -65,19 +43,8 @@ func (s *OCRService) ProcessOCR(ctx context.Context, req *OCRRequest) (*OCRRespo
         return nil, err
     }
 
-    // ファイルタイプを判定
-    fileType, mimeType := utils.DetectFileType(fileData)
-    
-    // 処理方法を決定
-    var processingMethod ProcessingMethod
-    switch fileType {
-    case utils.FileTypePDF:
-        processingMethod = ProcessingMethodPDFDirect
-    case utils.FileTypeJPEG, utils.FileTypePNG, utils.FileTypeGIF, utils.FileTypeWebP:
-        processingMethod = ProcessingMethodImageDirect
-    default:
-        return nil, fmt.Errorf("unsupported file type")
-    }
+    // ファイルタイプを判定してMIMEタイプ取得
+    _, mimeType := utils.DetectFileType(fileData)
 
     // Gemini APIでOCR処理
     ocrText, err := s.geminiClient.ProcessImage(ctx, fileData, mimeType, req.CustomPrompt)
@@ -86,10 +53,8 @@ func (s *OCRService) ProcessOCR(ctx context.Context, req *OCRRequest) (*OCRRespo
     }
 
     // レスポンスを構築
-    response := &OCRResponse{
-        OCRResult:        ocrText,
-        PromptVersion:    1,
-        ProcessingMethod: processingMethod,
+    response := &domain.OCRResponse{
+        OCRResult:     ocrText,
     }
 
     return response, nil

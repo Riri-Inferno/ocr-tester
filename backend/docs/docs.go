@@ -214,7 +214,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/service.OCRResponse"
+                            "$ref": "#/definitions/domain.OCRResponse"
                         }
                     },
                     "400": {
@@ -240,6 +240,14 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "domain.OCRResponse": {
+            "type": "object",
+            "properties": {
+                "ocrResult": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Prompt": {
             "type": "object",
             "properties": {
@@ -282,31 +290,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "service.OCRResponse": {
-            "type": "object",
-            "properties": {
-                "ocrResult": {
-                    "type": "string"
-                },
-                "processingMethod": {
-                    "$ref": "#/definitions/service.ProcessingMethod"
-                },
-                "promptVersion": {
-                    "type": "integer"
-                }
-            }
-        },
-        "service.ProcessingMethod": {
-            "type": "string",
-            "enum": [
-                "pdf_direct",
-                "image_direct"
-            ],
-            "x-enum-varnames": [
-                "ProcessingMethodPDFDirect",
-                "ProcessingMethodImageDirect"
-            ]
         }
     }
 }`

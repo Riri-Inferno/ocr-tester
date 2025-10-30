@@ -1,4 +1,9 @@
 definitions:
+  domain.OCRResponse:
+    properties:
+      ocrResult:
+        type: string
+    type: object
   domain.Prompt:
     properties:
       createdAt:
@@ -27,23 +32,6 @@ definitions:
       userId:
         type: string
     type: object
-  service.OCRResponse:
-    properties:
-      ocrResult:
-        type: string
-      processingMethod:
-        $ref: '#/definitions/service.ProcessingMethod'
-      promptVersion:
-        type: integer
-    type: object
-  service.ProcessingMethod:
-    enum:
-    - pdf_direct
-    - image_direct
-    type: string
-    x-enum-varnames:
-    - ProcessingMethodPDFDirect
-    - ProcessingMethodImageDirect
 info:
   contact: {}
 paths:
@@ -178,7 +166,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/service.OCRResponse'
+            $ref: '#/definitions/domain.OCRResponse'
         "400":
           description: Bad Request
           schema:
