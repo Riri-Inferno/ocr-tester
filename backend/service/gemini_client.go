@@ -1,196 +1,101 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os/exec"
-	"strings"
-	"time"
+	"os"
+
+	"cloud.google.com/go/vertexai/genai"
 )
 
-// GeminiClient
 type GeminiClient struct {
-    projectID  string
-    location   string
-    modelID    string
-    httpClient *http.Client
+	projectID string
+	location  string
+	modelID   string
+	client    *genai.Client
 }
 
-// 新しいGeminiClientインスタンスを作成
-func NewGeminiClient(projectID, location string) *GeminiClient {
-    return &GeminiClient{
-        projectID: projectID,
-        location:  location,
-        modelID:   "gemini-2.0-flash-001",
-        httpClient: &http.Client{
-            Timeout: 60 * time.Second,
-        },
-    }
+// NewGeminiClient 新しいGeminiClientインスタンスを作成
+func NewGeminiClient(projectID, location string) (*GeminiClient, error) {
+	ctx := context.Background()
+
+	// モデルIDを環境変数から取得
+	modelID := os.Getenv("GEMINI_MODEL_ID")
+	if modelID == "" {
+		modelID = "gemini-2.0-flash-001"
+	}
+
+	// Vertex AI クライアントを初期化（ADC使用）
+	client, err := genai.NewClient(ctx, projectID, location)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create genai client: %w", err)
+	}
+
+	return &GeminiClient{
+		projectID: projectID,
+		location:  location,
+		modelID:   modelID,
+		client:    client,
+	}, nil
 }
 
-// GeminiRequest
-type GeminiRequest struct {
-    Contents         []Content        `json:"contents"`
-    GenerationConfig GenerationConfig `json:"generationConfig"`
+// Close クライアントをクローズ
+func (c *GeminiClient) Close() error {
+	return c.client.Close()
 }
 
-// Content
-type Content struct {
-    Role  string `json:"role"`
-    Parts []Part `json:"parts"`
-}
+// ProcessFile PDFまたは画像ファイルを処理
+func (c *GeminiClient) ProcessFile(ctx context.Context, fileData []byte, mimeType string, prompt string) (string, error) {
+	// モデルを取得
+	model := c.client.GenerativeModel(c.modelID)
 
-// Part
-type Part struct {
-    Text       string      `json:"text,omitempty"`
-    InlineData *InlineData `json:"inlineData,omitempty"`
-}
+	// 生成設定
+	model.SetTemperature(0.2)
+	model.SetTopP(0.95)
+	model.SetMaxOutputTokens(8192)
 
-// InlineData
-type InlineData struct {
-    MimeType string `json:"mimeType"`
-    Data     string `json:"data"`
-}
+	// ファイルパートを作成
+	var filePart genai.Part
 
-// GenerationConfig
-type GenerationConfig struct {
-    Temperature     float32 `json:"temperature"`
-    MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
-}
+	switch mimeType {
+	case "application/pdf":
+		// PDFデータをそのまま使用
+		filePart = genai.Blob{
+			MIMEType: mimeType,
+			Data:     fileData,
+		}
+	case "image/png", "image/jpeg", "image/gif", "image/webp":
+		// 画像データを使用
+		filePart = genai.ImageData(mimeType, fileData)
+	default:
+		return "", fmt.Errorf("unsupported MIME type: %s", mimeType)
+	}
 
-// GeminiResponse
-type GeminiResponse struct {
-    Candidates []Candidate `json:"candidates"`
-    Error      *APIError   `json:"error,omitempty"`
-}
+	// テキストパートを作成
+	textPart := genai.Text(prompt)
 
-// Candidate
-type Candidate struct {
-    Content      Content `json:"content"`
-    FinishReason string  `json:"finishReason"`
-}
+	// コンテンツを生成
+	resp, err := model.GenerateContent(ctx, filePart, textPart)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate content: %w", err)
+	}
 
-// APIError
-type APIError struct {
-    Code    int    `json:"code"`
-    Message string `json:"message"`
-    Status  string `json:"status"`
-}
+	// レスポンスから結果を取得
+	if len(resp.Candidates) == 0 {
+		return "", fmt.Errorf("no candidates in response")
+	}
 
-// gcloudを使用してアクセストークンを取得
-func (c *GeminiClient) getAccessToken() (string, error) {
-    cmd := exec.Command("gcloud", "auth", "application-default", "print-access-token")
-    output, err := cmd.Output()
-    if err != nil {
-        return "", fmt.Errorf("failed to get access token: %w", err)
-    }
-    return strings.TrimSpace(string(output)), nil
-}
+	// テキストを抽出
+	var result string
+	for _, part := range resp.Candidates[0].Content.Parts {
+		if text, ok := part.(genai.Text); ok {
+			result += string(text)
+		}
+	}
 
-// 画像をOCR処理
-func (c *GeminiClient) ProcessImage(ctx context.Context, imageData []byte, mimeType string, prompt string) (string, error) {
-    // アクセストークンを取得
-    token, err := c.getAccessToken()
-    if err != nil {
-        return "", fmt.Errorf("authentication failed: %w", err)
-    }
+	if result == "" {
+		return "", fmt.Errorf("no text content found in response")
+	}
 
-    // リクエストを構築
-    request := GeminiRequest{
-        Contents: []Content{
-            {
-                Role: "user",
-                Parts: []Part{
-                    {
-                        InlineData: &InlineData{
-                            MimeType: mimeType,
-                            Data:     base64.StdEncoding.EncodeToString(imageData),
-                        },
-                    },
-                    {
-                        Text: prompt,
-                    },
-                },
-            },
-        },
-        GenerationConfig: GenerationConfig{
-            Temperature:     0.2,
-            MaxOutputTokens: 8192,
-        },
-    }
-
-    // APIエンドポイントを構築
-    url := fmt.Sprintf(
-        "https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:generateContent",
-        c.location, c.projectID, c.location, c.modelID,
-    )
-
-    // リクエストボディをJSON化
-    jsonData, err := json.Marshal(request)
-    if err != nil {
-        return "", fmt.Errorf("failed to marshal request: %w", err)
-    }
-
-    // HTTPリクエストを作成
-    req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
-    if err != nil {
-        return "", fmt.Errorf("failed to create request: %w", err)
-    }
-
-    req.Header.Set("Authorization", "Bearer "+token)
-    req.Header.Set("Content-Type", "application/json")
-
-    // リクエストを送信
-    resp, err := c.httpClient.Do(req)
-    if err != nil {
-        return "", fmt.Errorf("failed to send request: %w", err)
-    }
-    defer resp.Body.Close()
-
-    // レスポンスボディを読み取り
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return "", fmt.Errorf("failed to read response: %w", err)
-    }
-
-    // ステータスコードをチェック
-    if resp.StatusCode != http.StatusOK {
-        var errResp struct {
-            Error APIError `json:"error"`
-        }
-        if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error.Message != "" {
-            return "", fmt.Errorf("gemini api error (status %d): %s", resp.StatusCode, errResp.Error.Message)
-        }
-        return "", fmt.Errorf("gemini api returned status %d: %s", resp.StatusCode, string(body))
-    }
-
-    // レスポンスをパース
-    var geminiResp GeminiResponse
-    if err := json.Unmarshal(body, &geminiResp); err != nil {
-        return "", fmt.Errorf("failed to parse response: %w", err)
-    }
-
-    // エラーチェック
-    if geminiResp.Error != nil {
-        return "", fmt.Errorf("API error: %s", geminiResp.Error.Message)
-    }
-
-    // 結果を取得
-    if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
-        return "", fmt.Errorf("no content generated")
-    }
-
-    // テキストを抽出
-    for _, part := range geminiResp.Candidates[0].Content.Parts {
-        if part.Text != "" {
-            return part.Text, nil
-        }
-    }
-
-    return "", fmt.Errorf("no text content found in response")
+	return result, nil
 }
