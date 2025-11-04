@@ -197,14 +197,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "PDFまたは画像ファイル",
+                        "description": "PDFまたは画像ファイル（PDF, PNG, JPEG, GIF, WebP対応）",
                         "name": "PdfFile",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "カスタムプロンプト",
+                        "description": "カスタムプロンプト（抽出指示）",
                         "name": "CustomPrompt",
                         "in": "formData",
                         "required": true
@@ -212,13 +212,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "OCR処理成功",
                         "schema": {
                             "$ref": "#/definitions/domain.OCRResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "リクエストエラー",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -227,7 +227,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "サーバーエラー",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -243,7 +243,22 @@ const docTemplate = `{
         "domain.OCRResponse": {
             "type": "object",
             "properties": {
-                "ocrResult": {
+                "error": {
+                    "type": "string"
+                },
+                "extractedText": {
+                    "type": "string"
+                },
+                "fileName": {
+                    "type": "string"
+                },
+                "fileSize": {
+                    "type": "integer"
+                },
+                "processedAt": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
