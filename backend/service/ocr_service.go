@@ -5,57 +5,108 @@ import (
 	"fmt"
 	"io"
 	"ocr-tester/domain"
-	"ocr-tester/utils"
+	"strings"
+	"time"
 )
 
-// OCRService
+// OCRService はOCR処理を提供するサービス
 type OCRService struct {
-    geminiClient *GeminiClient
+	geminiClient *GeminiClient
 }
 
-// 新しいOCRServiceインスタンスを作成
-func NewOCRService(projectID, location string) *OCRService {
-    return &OCRService{
-        geminiClient: NewGeminiClient(projectID, location),
-    }
+// NewOCRService 新しいOCRServiceインスタンスを作成
+func NewOCRService(projectID, location string) (*OCRService, error) {
+	geminiClient, err := NewGeminiClient(projectID, location)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gemini client: %w", err)
+	}
+
+	return &OCRService{
+		geminiClient: geminiClient,
+	}, nil
 }
 
-// OCR処理を実行
+// Close サービスをクローズ
+func (s *OCRService) Close() error {
+	if s.geminiClient != nil {
+		return s.geminiClient.Close()
+	}
+	return nil
+}
+
+// ProcessOCR OCRリクエストを処理してレスポンスを返す
 func (s *OCRService) ProcessOCR(ctx context.Context, req *domain.OCRRequest) (*domain.OCRResponse, error) {
-    // プロンプトの検証
-    if req.CustomPrompt == "" {
-        return nil, fmt.Errorf("custom prompt is required")
-    }
+	// ファイルデータを読み込む
+	fileData, err := io.ReadAll(req.File)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
 
-    // ファイルサイズの事前チェック
-    if req.FileSize > utils.MaxFileSize {
-        return nil, fmt.Errorf("file size exceeds maximum allowed size of %d MB", utils.MaxFileSize/(1024*1024))
-    }
+	// MIMEタイプを判定
+	mimeType := s.detectMimeType(req.FileName, fileData)
 
-    // ファイルデータを読み込む
-    fileData, err := io.ReadAll(req.File)
-    if err != nil {
-        return nil, fmt.Errorf("failed to read file: %w", err)
-    }
+	// サポートされているファイルタイプか確認
+	if !s.isSupportedFileType(mimeType) {
+		return nil, fmt.Errorf("unsupported file type: %s", mimeType)
+	}
 
-    // ファイルのバリデーション
-    if err := utils.ValidateFile(fileData, req.FileName); err != nil {
-        return nil, err
-    }
+	// Geminiで処理（PDFも画像も同じメソッドで処理可能）
+	extractedText, err := s.geminiClient.ProcessFile(ctx, fileData, mimeType, req.CustomPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("OCR processing failed: %w", err)
+	}
 
-    // ファイルタイプを判定してMIMEタイプ取得
-    _, mimeType := utils.DetectFileType(fileData)
+	// レスポンスを構築
+	response := &domain.OCRResponse{
+		ExtractedText: extractedText,
+		Status:        "success",
+		FileName:      req.FileName,
+		FileSize:      req.FileSize,
+		ProcessedAt:   s.getCurrentTimestamp(),
+	}
 
-    // Gemini APIでOCR処理
-    ocrText, err := s.geminiClient.ProcessImage(ctx, fileData, mimeType, req.CustomPrompt)
-    if err != nil {
-        return nil, fmt.Errorf("OCR processing failed: %w", err)
-    }
+	return response, nil
+}
 
-    // レスポンスを構築
-    response := &domain.OCRResponse{
-        OCRResult:     ocrText,
-    }
+// detectMimeType ファイル名からMIMEタイプを判定
+func (s *OCRService) detectMimeType(fileName string, _ []byte) string {
+	lowerName := strings.ToLower(fileName)
 
-    return response, nil
+	switch {
+	case strings.HasSuffix(lowerName, ".pdf"):
+		return "application/pdf"
+	case strings.HasSuffix(lowerName, ".png"):
+		return "image/png"
+	case strings.HasSuffix(lowerName, ".jpg") || strings.HasSuffix(lowerName, ".jpeg"):
+		return "image/jpeg"
+	case strings.HasSuffix(lowerName, ".gif"):
+		return "image/gif"
+	case strings.HasSuffix(lowerName, ".webp"):
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+// isSupportedFileType サポートされているファイルタイプか確認
+func (s *OCRService) isSupportedFileType(mimeType string) bool {
+	supportedTypes := []string{
+		"application/pdf",
+		"image/png",
+		"image/jpeg",
+		"image/gif",
+		"image/webp",
+	}
+
+	for _, supported := range supportedTypes {
+		if mimeType == supported {
+			return true
+		}
+	}
+	return false
+}
+
+// getCurrentTimestamp 現在のタイムスタンプを取得
+func (s *OCRService) getCurrentTimestamp() string {
+	return time.Now().Format(time.RFC3339)
 }
