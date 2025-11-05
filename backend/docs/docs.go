@@ -38,65 +38,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/ocr-result/{id}": {
-            "get": {
-                "description": "Retrieve a specific OCR result stored in Firestore by document ID.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OCR"
-                ],
-                "summary": "Get OCR result by ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "OCR document ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/domain.OCRResult"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/prompts": {
             "get": {
                 "description": "Retrieve all prompts (excluding deleted)",
@@ -239,26 +180,85 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/test-ocr": {
+            "post": {
+                "description": "PDFまたは画像ファイルからテキストを抽出",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OCR"
+                ],
+                "summary": "OCR処理を実行",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "PDFまたは画像ファイル（PDF, PNG, JPEG, GIF, WebP対応）",
+                        "name": "PdfFile",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "カスタムプロンプト（抽出指示）",
+                        "name": "CustomPrompt",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OCR処理成功",
+                        "schema": {
+                            "$ref": "#/definitions/domain.OCRResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "リクエストエラー",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバーエラー",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "domain.OCRResult": {
+        "domain.OCRResponse": {
             "type": "object",
             "properties": {
-                "createdAt": {
-                    "description": "レコード作成日時",
+                "error": {
                     "type": "string"
                 },
                 "extractedText": {
-                    "description": "OCR により抽出されたテキスト",
                     "type": "string"
                 },
                 "fileName": {
-                    "description": "処理対象のファイル名",
                     "type": "string"
                 },
-                "id": {
-                    "description": "Firestore のドキュメント ID",
+                "fileSize": {
+                    "type": "integer"
+                },
+                "processedAt": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

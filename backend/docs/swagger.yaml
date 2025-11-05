@@ -1,17 +1,17 @@
 definitions:
-  domain.OCRResult:
+  domain.OCRResponse:
     properties:
-      createdAt:
-        description: レコード作成日時
+      error:
         type: string
       extractedText:
-        description: OCR により抽出されたテキスト
         type: string
       fileName:
-        description: 処理対象のファイル名
         type: string
-      id:
-        description: Firestore のドキュメント ID
+      fileSize:
+        type: integer
+      processedAt:
+        type: string
+      status:
         type: string
     type: object
   domain.Prompt:
@@ -60,46 +60,6 @@ paths:
       summary: Hello World メッセージを返す
       tags:
       - General
-  /api/ocr-result/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve a specific OCR result stored in Firestore by document
-        ID.
-      parameters:
-      - description: OCR document ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.OCRResult'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get OCR result by ID
-      tags:
-      - OCR
   /api/prompts:
     get:
       description: Retrieve all prompts (excluding deleted)
@@ -194,4 +154,42 @@ paths:
       summary: Create or update prompt
       tags:
       - Prompts
+  /api/test-ocr:
+    post:
+      consumes:
+      - multipart/form-data
+      description: PDFまたは画像ファイルからテキストを抽出
+      parameters:
+      - description: PDFまたは画像ファイル（PDF, PNG, JPEG, GIF, WebP対応）
+        in: formData
+        name: PdfFile
+        required: true
+        type: file
+      - description: カスタムプロンプト（抽出指示）
+        in: formData
+        name: CustomPrompt
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OCR処理成功
+          schema:
+            $ref: '#/definitions/domain.OCRResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバーエラー
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OCR処理を実行
+      tags:
+      - OCR
 swagger: "2.0"

@@ -1,54 +1,80 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-	"ocr-tester/repository"
-
-	"github.com/go-chi/chi/v5"
+	"ocr-tester/domain"
+	"ocr-tester/service"
 )
 
-// OcrHandler は OCR 結果関連の HTTP ハンドラ。
-// 依存として OCRResultRepository を受け取る。
+// OcrHandler
 type OcrHandler struct {
-	Repo repository.OCRResultRepository
+	ocrService *service.OCRService
 }
 
-// NewOcrHandler は OcrHandler の新しいインスタンスを生成する。
-func NewOcrHandler(repo repository.OCRResultRepository) *OcrHandler {
-	return &OcrHandler{Repo: repo}
+// NewOcrHandler
+func NewOcrHandler(ocrService *service.OCRService) *OcrHandler {
+	return &OcrHandler{
+		ocrService: ocrService,
+	}
 }
 
-// GetOCRResultByID は指定された ID の OCR 結果を取得し、JSON 形式で返す。
-// @Summary Get OCR result by ID
-// @Description Retrieve a specific OCR result stored in Firestore by document ID.
+// TestOCR OCRテスト処理エンドポイント
+// @Summary OCR処理を実行
+// @Description PDFまたは画像ファイルからテキストを抽出
 // @Tags OCR
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
-// @Param id path string true "OCR document ID"
-// @Success 200 {object} domain.OCRResult
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/ocr-result/{id} [get]
-func (h *OcrHandler) GetOCRResultByID(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id := chi.URLParam(r, "id")
-
-	if id == "" {
-		http.Error(w, `{"error":"missing id parameter"}`, http.StatusBadRequest)
+// @Param PdfFile formData file true "PDFまたは画像ファイル（PDF, PNG, JPEG, GIF, WebP対応）"
+// @Param CustomPrompt formData string true "カスタムプロンプト（抽出指示）"
+// @Success 200 {object} domain.OCRResponse "OCR処理成功"
+// @Failure 400 {object} map[string]string "リクエストエラー"
+// @Failure 500 {object} map[string]string "サーバーエラー"
+// @Router /api/test-ocr [post]
+func (h *OcrHandler) TestOCR(w http.ResponseWriter, r *http.Request) {
+	// multipart/form-dataをパース（最大20MB）
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
 		return
 	}
 
-	result, err := h.Repo.FindByID(ctx, id)
+	// ファイルを取得
+	file, fileHeader, err := r.FormFile("PdfFile")
 	if err != nil {
-		// Repository 層が返すエラーの粒度によっては分岐可能だが、ここでは 404 として扱う
-		http.Error(w, `{"error":"result not found"}`, http.StatusNotFound)
+		http.Error(w, "File is required", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// カスタムプロンプトを取得
+	customPrompt := r.FormValue("CustomPrompt")
+	if customPrompt == "" {
+		http.Error(w, "CustomPrompt is required", http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		http.Error(w, `{"error":"failed to encode response"}`, http.StatusInternalServerError)
+	// OCRリクエストを構築
+	ocrRequest := &domain.OCRRequest{
+		File:         file,
+		FileName:     fileHeader.Filename,
+		FileSize:     fileHeader.Size,
+		CustomPrompt: customPrompt,
 	}
+
+	// OCR処理を実行
+	ctx := context.Background()
+	response, err := h.ocrService.ProcessOCR(ctx, ocrRequest)
+	if err != nil {
+		errorResponse := map[string]string{"error": err.Error()}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse)
+		return
+	}
+
+	// 成功レスポンスを返す
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
